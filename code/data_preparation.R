@@ -8,7 +8,7 @@
 library(readxl)
 library(tidyverse)
 source(here::here('code','initiation.R'))
-
+library(rex)
 df <- data.table(read_excel(here('input','clinical_df.xlsx')))
 
 
@@ -31,21 +31,24 @@ setnames(df,old='Performance status at diagmosis( if known) 0,1, 2, 3, 4',new='p
 
 df[,.(performance_status)]
 
-setnames(df,old="Were they operable after 3 cycles? Y/N. If yes, go to outcome of surgery section",
-         new='outcome_after_3_cycles')
 
 setnames(df,old="Were they operable after 3 cycles? Y/N.\r\nIf yes, go to outcome of surgery section",
          new='outcome_after_3_cycles')
 
+
+         
+
+
 setnames(df,old="Was there a change to there chemo regimen? Y/N",
          new='change_in_chemo')
 df[,table(change_in_chemo)]
+
 df[,str_replace(change_in_chemo,regex('yes',ignore.case=T),'yes')]
 
-multi_cox_results <- coxph(surv(time=,event=)~change_in_chemo+figo_staging)
 
-library(gtsummary)
-gtsummary::
+
+
+# multi_cox_results <- coxph(surv(time=,event=)~change_in_chemo+figo_staging)
 
 setnames(df,old="If inoperable after 3 cycles, did they complete 6 cycles? Y/N ",
          new='6_cycle_complete')
@@ -71,3 +74,14 @@ setnames(df,old='Optimally or suboptimally debulked?',new='surgical_outcome')
 df[,]
 
 col_to_include <- c('age')
+
+
+### cleaning
+df <- df  %>% mutate(
+  outcome_after_3_cycles = 
+    case_when(
+      str_detect(outcome_after_3_cycles, regex("^(?i)no")) ~  "No",
+      str_detect(outcome_after_3_cycles, regex("^(?i)yes")) ~"Yes"
+    )
+  # start with case-insensitive no 
+) 
