@@ -21,7 +21,11 @@ df <- read_excel(here('input','clinical_df.xlsx'))
 
 setnames(df,old='FIGO Staging (TNM Staging)',new='figo_staging')
 
+
+
 setnames(df,old='Performance status at diagmosis( if known) 0,1, 2, 3, 4',new='performance_status')
+
+df %>% count(performance_status)
 
 setnames(df,old="Were they operable after 3 cycles? Y/N. If yes, go to outcome of surgery section",
          new='outcome_after_3_cycles')
