@@ -6,7 +6,7 @@
 # Output: 
 # --------------
 library(readxl)
-
+library(tidyverse)
 source(here::here('code','initiation.R'))
 
 df <- read_excel(here('input','clinical_df.xlsx'))
@@ -27,9 +27,8 @@ setnames(df,old='Performance status at diagmosis( if known) 0,1, 2, 3, 4',new='p
 
 df %>% count(performance_status)
 
-setnames(df,old="Were they operable after 3 cycles? Y/N. If yes, go to outcome of surgery section",
+setnames(df,old="Were they operable after 3 cycles? Y/N.\r\nIf yes, go to outcome of surgery section",
          new='outcome_after_3_cycles')
-
 
 setnames(df,old="Was there a change to there chemo regimen? Y/N",
          new='change_in_chemo')
