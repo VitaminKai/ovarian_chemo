@@ -4,30 +4,186 @@ output: ioslides_presentation
 ---
 
 ```{r setup, include=FALSE}
+library(survival)
+# library(ggpubr)
+library(flextable)
+library(gtsummary)
+source(here::here('code','initiation.R'))
+source(here('code','data_preparation.R'))
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
-## R Markdown
+## Clinical summary table
 
-This is an R Markdown presentation. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+Compared to the adjuvant chemotherapy group, patients in the surveillence group tends to be older and present with better prognostic profile. 
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document.
+```{r,echo=FALSE,warning=FALSE}
+tbl_summary(data=clinical_multi_df[,!c('patient_id')],
+            by='adjuvant_management',
+            label = list(age_at_diagnosis ~ 'Age at diagnosis',
+                         os_time ~ 'Follow up time',
+                         os_status ~ 'Number of overall death',
+                         pfs_time ~ 'Progression free survival time',
+                         pfs_status ~ 'Number of disease progression',
+                         R_status ~ 'R status',
+                         TRG_status ~ 'TRG status',
+                         distance_anal_verge_final ~ 'Distance from anal verge',
+                         histological_grade_baseline ~ 'Baseline histological grade',
+                         cancer_stage_yp~ 'Cancer staging post surgery',
+                         time_interval_RT_surgery ~ 'Time between radiotherapy and surgery',
+                         cancer_stage_yp_RT~'Cancer staging post radiotherapy'),
+            missing='no',
+            theme_gtsummary_journal(journal='jama')) %>%
+  add_n() %>% # add column with total number of non-missing observations
+  add_p() %>% # test for a difference between groups
+  modify_header(label = "**Variable**",
+                stat_1 = '**Adjuvant chemotherapy**',
+                stat_2 = '**Surveillence**') %>% # update the column header
+  bold_labels()
 
-## Slide with Bullets
 
-- Bullet 1
-- Bullet 2
-- Bullet 3
 
-## Slide with R Output
-
-```{r cars, echo = TRUE}
-summary(cars)
 ```
 
-## Slide with Plot
 
-```{r pressure}
-plot(pressure)
+## KM Survival curve w.r.t overall survival
+
+Plot KM curve with respect to adjuvant management option: adjuvant chemo vs surveillence
+```{r KM curve os,echo=FALSE,fig.width=3.5, fig.height=1.8,warning=FALSE}
+
+survminer::ggsurvplot(
+  fit = survfit(Surv(time=os_time,event=os_status) ~ patient_group, data = clinical_df),
+  xlab = "Years", 
+  ylab = "Overall survival probability",
+  # risk.table = T,
+  pval=T,
+  pval.method=T,
+  # cumevents = T,
+  break.time.by = 1,
+  # surv.median.line = "v",  # add the median survival pointer.
+  legend.labs = c("3 cycle surgery",'6 cycle chemo change surgery',
+                  '6 cycle no chemo change surgery',"6 cycle no surgery"),
+  legend= 'right', 
+  pval.coord=c(0,0.04),
+  pval.method.coord=c(0,0.12),
+  palette = 'Dark2',
+)
+
 ```
+
+## KM Survival curve w.r.t recurrence free survival
+
+Plot KM curve with respect to adjuvant management option: adjuvant chemo vs surveillence
+```{r KM curve rfs,echo=FALSE,warning=FALSE}
+
+survminer::ggsurvplot(
+  fit = survfit(Surv(time=pfs_time,event=pfs_status) ~ patient_group, data = clinical_df), 
+  xlab = "Years", 
+  ylab = "Recurrence free survival probability",
+  # risk.table = T,
+  pval=T,
+  pval.method=T,
+  # cumevents = T,
+  break.time.by = 1,
+  # surv.median.line = "v",  # add the median survival pointer.
+  legend='right',
+  legend.labs = c("3 cycle surgery",'6 cycle chemo change surgery',
+                  '6 cycle no chemo change surgery',"6 cycle no surgery"),
+  pval.coord=c(5,0.02),
+  pval.method.coord=c(5,0.1),
+  palette = 'Dark2'
+)
+
+```
+
+## Missing data pattern
+```{r missing data plot,echo=F}
+
+na_pattern_df <- as.data.table(clinical_multi_df[,apply(.SD,2,function(x){return(is.na(x))}),.SDcols=!c('patient_id')])
+na_pattern_df[,patient_id:=clinical_multi_df[,patient_id]]
+
+na_pattern_plot_df <- melt(na_pattern_df,id.vars='patient_id')
+
+ggplot(data=na_pattern_plot_df)+
+  geom_tile(aes(x=patient_id,y=variable,fill=value),colour='black')+
+  labs(fill='Missing status',x='patient id')+
+  scale_y_discrete(labels=rid_of_underscore)+
+  scale_fill_brewer(palette = 'RdYlGn',labels=c('FALSE'='present','TRUE'='missing'))+
+  theme(axis.ticks.x = element_blank(),
+        axis.text.x = element_blank())
+
+```
+
+
+## Multivariate cox regression
+
+Cox analysis for overall survival adjusting for the following clinical parameters: age at diagnosis,R status, EMVI, CRM, distance anal verge, baseline histological grade, cancer staging after surgery
+
+```{r multi-cox os, echo=FALSE}
+
+coxph(Surv(time=os_time,event=os_status) ~ patient_grouping+figo_staging+performance_status+brca_status+CRM+distance_anal_verge_final+histological_grade_baseline+time_interval_RT_surgery,
+      data = clinical_multi_df)
+
+
+```
+
+
+## Multivariate cox regression with rfs
+
+Cox analysis for recurrence free survival adjusting for the following: age at diagnosis,R status, EMVI, CRM, distance anal verge, baseline histological grade, cancer staging after surgery
+
+```{r multi-cox rfs, echo=FALSE}
+
+coxph(Surv(time=rfs_time,event=rfs_status) ~ adjuvant_management+age_at_diagnosis+R_status+EMVI+CRM+distance_anal_verge_final+
+        histological_grade_baseline+time_interval_RT_surgery+
+        cancer_stage_yp_RT+cancer_stage_yp, data = clinical_multi_df)
+
+```
+
+## Multi cox analysis table
+
+```{r cox table,echo=FALSE}
+
+os_surv_table <-coxph(Surv(time=os_time,event=os_status) ~
+                        adjuvant_management+age_at_diagnosis+R_status+TRG_status+
+                        EMVI+CRM+distance_anal_verge_final+
+                        histological_grade_baseline+time_interval_RT_surgery+
+                        cancer_stage_yp_RT+cancer_stage_yp, 
+                      data = clinical_multi_df) %>%
+  tbl_regression(exponentiate = TRUE,
+                 label = list(age_at_diagnosis ~ 'Age at diagnosis',
+                              R_status ~ 'R status',
+                              TRG_status ~ 'TRG status',
+                              distance_anal_verge_final ~ 'Distance from anal verge',
+                              histological_grade_baseline ~ 'Baseline histological grade',
+                              cancer_stage_yp ~ 'Cancer staging post surgery',
+                              time_interval_RT_surgery ~ 'Time between radiotherapy and surgery',
+                              cancer_stage_yp_RT~'Cancer staging post radiotherapy')) %>%
+  add_n()
+
+rfs_surv_table <-coxph(Surv(time=rfs_time,event=rfs_status) ~
+                         adjuvant_management+age_at_diagnosis+R_status+TRG_status+
+                         +EMVI+CRM+distance_anal_verge_final+
+                         histological_grade_baseline+time_interval_RT_surgery+
+                         cancer_stage_yp+cancer_stage_yp_RT, data = clinical_multi_df) %>%
+  tbl_regression(exponentiate = TRUE,
+                 label = list(age_at_diagnosis ~ 'Age at diagnosis',
+                              R_status ~ 'R status',
+                              TRG_status ~ 'TRG status',
+                              distance_anal_verge_final ~ 'Distance from anal verge',
+                              histological_grade_baseline ~ 'Baseline histological grade',
+                              cancer_stage_yp~ 'Cancer staging post surgery',
+                              time_interval_RT_surgery ~ 'Time between radiotherapy and surgery',
+                              cancer_stage_yp_RT~'Cancer staging post radiotherapy')) %>%
+  add_n()
+
+combined_survival_table <-
+  tbl_merge(
+    tbls = list(os_surv_table, rfs_surv_table),
+    tab_spanner = c("**Overall survival**", "**Recurrence free survival**")
+  )
+
+combined_survival_table
+```
+
 
