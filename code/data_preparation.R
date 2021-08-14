@@ -60,12 +60,13 @@ setnames(df,old='Date of last follow up (bloods or imaging?)',new='date_last_fol
 setnames(df,old='Date neoadjuvant chemo commenced',new='date_neoadjuvant_chemo_start')
 
 setnames(df,old='If deceased( Date of death)',new='date_of_death')
+setnames(df,old='Maintenance therapy after surgery? (Y/N)',new='maintenance_therapy')
 
 col_to_include <- c('DOB','date_of_diagnosis','date_last_follow_up','date_neoadjuvant_chemo_start','date_of_death',
                     'figo_staging','patient_id',
                     'outcome_after_3_cycles','change_in_chemo','outcome_after_6_cycles',
                     'surgical_outcome','brca_status','performance_status',
-                    'os_time','os_status','pfs_time','pfs_status')
+                    'os_time','os_status','pfs_time','pfs_status', "maintenance_therapy")
 
 clinical_df <- df[,..col_to_include]
 
@@ -206,3 +207,19 @@ clinical_df[outcome_after_3_cycles=='no'&change_in_chemo=='changed'&outcome_afte
 clinical_df[,patient_group:=factor(patient_group)]
 
 clinical_df[,table(patient_group)]
+
+clinical_df <- clinical_df %>% 
+  dplyr::mutate(
+  surgical_outcome = 
+    case_when(str_detect(surgical_outcome, regex("(?i)suboptimally debulk") ) ~ "0",
+              str_detect(surgical_outcome, regex("(?i)optimally debulk") ) ~ "1"
+  ))
+
+clinical_df <- clinical_df %>% mutate(figo_staging = str_extract(figo_staging, "\\d"))
+
+clinical_df <- clinical_df %>% 
+  dplyr::mutate(
+    maintenance_therapy = 
+      case_when(str_detect(maintenance_therapy, regex("(?i)yes") ) ~ "yes",
+                str_detect(maintenance_therapy, regex("(?i)no") ) ~ "no"
+      ))
