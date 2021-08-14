@@ -121,7 +121,8 @@ Cox analysis for overall survival adjusting for the following clinical parameter
 
 ```{r multi-cox os, echo=FALSE}
 
-coxph(Surv(time=os_time,event=os_status) ~ patient_grouping+figo_staging+performance_status+brca_status+CRM+distance_anal_verge_final+histological_grade_baseline+time_interval_RT_surgery,
+coxph(Surv(time=os_time,event=os_status) ~ patient_grouping+age_at_diagnosis+figo_staging+performance_status+brca_status+
+        surgical_outcome+time_interval_RT_surgery,
       data = clinical_multi_df)
 
 
