@@ -76,7 +76,7 @@ clinical_df <- clinical_df[!(patient_id%in%c('R695231','R046570'))]
 clinical_df[,`:=`(date_of_diagnosis=as.Date(date_of_diagnosis),
                   DOB=as.Date(DOB),
                   date_neoadjuvant_chemo_start=as.Date(as.numeric(date_neoadjuvant_chemo_start),origin='1900-01-01')
-                  )]
+)]
 
 clinical_df[,age_at_diagnosis:= as.double(date_of_diagnosis-DOB)/365.25]
 clinical_df[,.(age_at_diagnosis)]
@@ -99,7 +99,7 @@ clinical_df[,os_status:=ifelse(str_detect(os_status,regex('deceased|dead',ignore
 clinical_df[,os_time:=case_when(
   os_status==0 ~ as.numeric(difftime(time1=date_last_follow_up,time2=date_neoadjuvant_chemo_start,units='days')),
   os_status==1 ~ as.numeric(os_time)
-  )]
+)]
 
 clinical_df[,os_time:=os_time/365.25]
 
@@ -136,7 +136,23 @@ clinical_df[,table(figo_staging)]
 
 clinical_df[,table(surgical_outcome)]
 
+clinical_df[, surgical_outcome:=
+              case_when(
+                str_detect(surgical_outcome, regex("(?i)sub?optimal")) ~"suboptimal",
+                str_detect(surgical_outcome, regex("(?i)optimal")) ~  "optimal",
+                str_detect(surgical_outcome, regex("(?i)residual|milliary")) ~"suboptimal",
+              )]
 
+# 
+# test_str <- c('Residual milliary disease','suboptimally debulked',
+#               'residual disease <1cm (?optimally debulked)',
+#               'optimal debulking with minimal defuse residual miliary disease (1-2 mm diameter)')
+# 
+# case_when(
+#   str_detect(test_str, regex("(?i)sub?optimal")) ~"suboptimal",
+#   str_detect(test_str, regex("(?i)optimal")) ~  "optimal",
+#   str_detect(test_str, regex("(?i)milliary|residual")) ~"suboptimal",
+# )
 
 #===============================================================#
 # Format outcome after 3 cycles ----
@@ -149,11 +165,11 @@ patient_to_exclude <- clinical_df[str_detect(outcome_after_3_cycles,regex('died|
 clinical_df<- clinical_df[!(patient_id %in% patient_to_exclude)]
 
 clinical_df[, outcome_after_3_cycles:=
-    case_when(
-      str_detect(outcome_after_3_cycles, regex("^(?i)no")) ~  "no",
-      str_detect(outcome_after_3_cycles, regex("^(?i)yes")) ~"yes"
-    )]
-  # start with case-insensitive no 
+              case_when(
+                str_detect(outcome_after_3_cycles, regex("^(?i)no")) ~  "no",
+                str_detect(outcome_after_3_cycles, regex("^(?i)yes")) ~"yes"
+              )]
+# start with case-insensitive no 
 
 clinical_df<- clinical_df[!(is.na(outcome_after_3_cycles))]
 
@@ -208,18 +224,28 @@ clinical_df[,patient_group:=factor(patient_group)]
 
 clinical_df[,table(patient_group)]
 
+# figo staging
+clinical_df[,table(figo_staging)]
+clinical_df[!(str_detect(figo_staging, "3?\\/4")),figo_staging := str_extract(figo_staging, "\\d")]
+
+clinical_df[str_detect(figo_staging, "3?\\/4"),figo_staging:= '4']
+
+# Maintenance therapy
+clinical_df[,table(maintenance_therapy)]
+
 clinical_df <- clinical_df %>% 
   dplyr::mutate(
-  surgical_outcome = 
-    case_when(str_detect(surgical_outcome, regex("(?i)suboptimally debulk") ) ~ "0",
-              str_detect(surgical_outcome, regex("(?i)optimally debulk") ) ~ "1"
-  ))
-
-clinical_df <- clinical_df %>% mutate(figo_staging = str_extract(figo_staging, "\\d"))
-
-clinical_df <- clinical_df %>% 
-  dplyr::mutate(
-    maintenance_therapy = 
+    maintenance_therapy =
       case_when(str_detect(maintenance_therapy, regex("(?i)yes") ) ~ "yes",
-                str_detect(maintenance_therapy, regex("(?i)no") ) ~ "no"
-      ))
+                str_detect(maintenance_therapy, regex("(?i)no|Nil|Two further cycles|offered radiotherapy")) ~ "no")
+  )
+
+#===============================================================#
+# Create multi cox clinical df ----
+#===============================================================#
+
+multi_cox_cols <- c('patient_id','os_time','os_status','pfs_time','pfs_status',
+                    'age_at_diagnosis','brca_status','figo_staging','performance_status',
+                    'surgical_outcome','patient_group','maintenance_therapy')
+
+clinical_multi_df <- clinical_df[,..multi_cox_cols]
