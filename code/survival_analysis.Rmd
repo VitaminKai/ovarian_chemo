@@ -35,11 +35,11 @@ tbl_summary(data=clinical_multi_df[,!c('patient_id')],
             theme_gtsummary_journal(journal='jama')) %>%
   add_n() %>% # add column with total number of non-missing observations
   add_p() %>% # test for a difference between groups
-  modify_header(label = "**Variable**",
-                stat_1 = '**3 cycle surgery**',
-                stat_2 = '**6 cycle chemo change surgery**',
-                stat_3 = '**6 cycle no chemo change surgery**',
-                stat_4 = "**6 cycle no surgery**") %>% # update the column header
+  # modify_header(label = "**Variable**",
+  #               stat_1 = '**3 cycle surgery**',
+  #               stat_2 = '**6 cycle chemo change surgery**',
+  #               stat_3 = '**6 cycle no chemo change surgery**',
+  #               stat_4 = "**6 cycle no surgery**") %>% # update the column header
   bold_labels()
 
 
@@ -123,8 +123,8 @@ Cox analysis for overall survival adjusting for the following clinical parameter
 ```{r multi-cox os, echo=FALSE}
 
 coxph(Surv(time=os_time,event=os_status) ~ patient_group+age_at_diagnosis+figo_staging+performance_status+brca_status+
-        surgical_outcome+maintenance_therapy, data = clinical_multi_df)
-
+        surgical_outcome+maintenance_therapy, data = clinical_multi_df)%>%
+  generics::tidy(exponentiate=TRUE,conf.int=TRUE)
 
 ```
 
@@ -135,7 +135,9 @@ Cox analysis for recurrence free survival adjusting
 ```{r multi-cox pfs, echo=FALSE}
 
 coxph(Surv(time=pfs_time,event=pfs_status) ~ patient_group+age_at_diagnosis+figo_staging+performance_status+brca_status+
-        surgical_outcome+maintenance_therapy, data = clinical_df)
+        surgical_outcome+maintenance_therapy, data = clinical_df) %>%
+    generics::tidy(exponentiate=TRUE,conf.int=TRUE)
+
 
 ```
 
@@ -155,7 +157,8 @@ os_surv_table <-coxph(Surv(time=os_time,event=os_status) ~
                               brca_status ~ 'brca status',
                               surgical_outcome ~ 'surgical outcome',
                               maintenance_therapy ~ 'maintenance therapy')) %>%
-  add_n()
+  add_n() %>%
+  add_significance_stars()
 
 pfs_surv_table <-coxph(Surv(time=pfs_time,event=pfs_status) ~
                          patient_group+age_at_diagnosis+figo_staging+performance_status+
@@ -169,7 +172,16 @@ pfs_surv_table <-coxph(Surv(time=pfs_time,event=pfs_status) ~
                               brca_status ~ 'brca status',
                               surgical_outcome ~ 'surgical outcome',
                               maintenance_therapy ~ 'maintenance therapy')) %>%
-  add_n()
+  add_n()%>%
+  add_significance_stars()
+# 
+# summary_table <- clinical_multi_df[,.(age_at_diagnosis,patient_group,figo_staging,performance_status,
+#                          brca_status,surgical_outcome,maintenance_therapy)] %>% 
+#   tbl_summary(missing = "no") %>% 
+#   add_n() %>% 
+#   modify_header(stat_0 ~ "**n (%)**") %>%
+#   modify_footnote(stat_0 ~ NA_character_)
+
 
 combined_survival_table <-
   tbl_merge(
