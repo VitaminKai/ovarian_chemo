@@ -191,5 +191,34 @@ combined_survival_table <-
 
 combined_survival_table
 ```
+### Chemo change vs surgical outcome 
+```{r}
+chemo_change_vs_surgical_outcome_df <- clinical_multi_df %>% 
+  filter(patient_group %in% c("6_cycle_chemo_change_surgery", "6_cycle_no_chemo_change_surgery")) %>% 
+  filter(!is.na(surgical_outcome)) %>% 
+  count(surgical_outcome, patient_group) %>% 
+  pivot_wider(names_from = patient_group, values_from = n)
 
+```
+
+
+
+```{r}
+chemo_change_vs_surgical_outcome_df %>% 
+  select(-surgical_outcome) %>% 
+  chisq.test()
+```
+### Type of chemo's impact on operability
+```{r}
+clinical_multi_df %>% 
+  # count(patient_group)
+  mutate(operability = 
+           case_when(
+             patient_group == "6_cycle_no_surgery" ~ FALSE, 
+             is.na(patient_group) ~ NA, 
+             patient_group == "6_cycle_no_chemo_change_surgery" ~ NA,
+             TRUE ~ TRUE
+           )
+         )
+```
 

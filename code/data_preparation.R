@@ -62,13 +62,16 @@ setnames(df,old='Date neoadjuvant chemo commenced',new='date_neoadjuvant_chemo_s
 setnames(df,old='If deceased( Date of death)',new='date_of_death')
 setnames(df,old='Maintenance therapy after surgery? (Y/N)',new='maintenance_therapy')
 
+setnames(df, old = "What neodjuvant did they start with?", new = "type_of_chemo")
+
 col_to_include <- c('DOB','date_of_diagnosis','date_last_follow_up','date_neoadjuvant_chemo_start','date_of_death',
                     'figo_staging','patient_id',
                     'outcome_after_3_cycles','change_in_chemo','outcome_after_6_cycles',
                     'surgical_outcome','brca_status','performance_status',
-                    'os_time','os_status','pfs_time','pfs_status', "maintenance_therapy")
+                    'os_time','os_status','pfs_time','pfs_status', "maintenance_therapy", "type_of_chemo")
 
 clinical_df <- df[,..col_to_include]
+# clinical_df %>% count(type_of_chemo)
 
 # Remove Non-HGSOC cases and patients with no patient_id (they don't have any relevant clinical details)
 clinical_df <- clinical_df[!(patient_id%in%c('R695231','R046570'))]
@@ -249,3 +252,19 @@ multi_cox_cols <- c('patient_id','os_time','os_status','pfs_time','pfs_status',
                     'surgical_outcome','patient_group','maintenance_therapy')
 
 clinical_multi_df <- clinical_df[,..multi_cox_cols]
+
+clinical_df %>% 
+  mutate(
+    type_of_chemo_cleaned = 
+      case_when(
+        type_of_chemo %in% c("NA", "N/A", "??") ~ NA_character_,
+        # str_detect(type_of_chemo, "(?i)carbo.*pac.*") ~ "1",
+        TRUE ~ type_of_chemo
+      )
+  ) %>% 
+  count(type_of_chemo_cleaned, sort = TRUE) %>% 
+  View()
+### three groups you can find: 
+### carboplatin + pac
+### carboplatin alone 
+### other combinations e.g. Carboplatin + paclitaxel, bevacizumab 
