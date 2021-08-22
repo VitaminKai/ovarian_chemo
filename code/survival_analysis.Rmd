@@ -210,15 +210,52 @@ chemo_change_vs_surgical_outcome_df %>%
 ```
 ### Type of chemo's impact on operability
 ```{r}
-clinical_multi_df %>% 
-  # count(patient_group)
+
+
+chemo_grouped_df <- clinical_df %>% 
+  mutate(
+    type_of_chemo_cleaned = 
+      case_when(
+        type_of_chemo %in% c("NA", "N/A", "??") ~ NA_character_,
+        str_detect(type_of_chemo, "(?i)carbo.*pac.*") ~ "1",
+        str_detect(type_of_chemo, "(?i)single.*carbo.*") ~ "2",
+        TRUE ~ "3" 
+      )
+  
+### three groups you can find: 
+### carboplatin + pac
+### carboplatin alone 
+### other combinations e.g. Carboplatin + paclitaxel, bevacizumab 
+  ) %>% 
   mutate(operability = 
-           case_when(
-             patient_group == "6_cycle_no_surgery" ~ FALSE, 
-             is.na(patient_group) ~ NA, 
-             patient_group == "6_cycle_no_chemo_change_surgery" ~ NA,
-             TRUE ~ TRUE
-           )
+         case_when(
+           patient_group == "6_cycle_no_surgery" ~ FALSE, 
+           is.na(patient_group) ~ NA, 
+           patient_group == "6_cycle_no_chemo_change_surgery" ~ NA,
+           TRUE ~ TRUE
          )
+       )
+
+
+
+chemo_grouped_df %>%
+  select(operability, type_of_chemo_cleaned) %>% 
+  drop_na() %>% 
+  count(operability, type_of_chemo_cleaned) %>% 
+  ggplot() +
+  geom_col() +
+  aes(x = type_of_chemo_cleaned, fill = operability, y = n) +
+  xlab("Type of Chemotherapy")
+  
+
+```
+### change in chemo vs no change in chemo
+
+```{r}
+chemo_grouped_df %>% count(change_in_chemo, operability) %>% 
+  drop_na() %>% 
+  pivot_wider(names_from = change_in_chemo, values_from = n) %>% 
+  mutate(no_change = replace_na(no_change, 0)) %>% 
+  chisq.test()
 ```
 

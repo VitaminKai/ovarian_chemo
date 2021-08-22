@@ -253,18 +253,4 @@ multi_cox_cols <- c('patient_id','os_time','os_status','pfs_time','pfs_status',
 
 clinical_multi_df <- clinical_df[,..multi_cox_cols]
 
-clinical_df %>% 
-  mutate(
-    type_of_chemo_cleaned = 
-      case_when(
-        type_of_chemo %in% c("NA", "N/A", "??") ~ NA_character_,
-        # str_detect(type_of_chemo, "(?i)carbo.*pac.*") ~ "1",
-        TRUE ~ type_of_chemo
-      )
-  ) %>% 
-  count(type_of_chemo_cleaned, sort = TRUE) %>% 
-  View()
-### three groups you can find: 
-### carboplatin + pac
-### carboplatin alone 
-### other combinations e.g. Carboplatin + paclitaxel, bevacizumab 
+
