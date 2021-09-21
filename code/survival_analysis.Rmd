@@ -62,8 +62,7 @@ survminer::ggsurvplot(
   # cumevents = T,
   break.time.by = 1,
   # surv.median.line = "v",  # add the median survival pointer.
-  legend.labs = c("3 cycle surgery",'6 cycle chemo change surgery',
-                  '6 cycle no chemo change surgery',"6 cycle no surgery"),
+  legend.labs = c("3 cycle surgery",'6 cycle surgery'),
   legend= 'right', 
   pval.coord=c(0,0.04),
   pval.method.coord=c(0,0.12),
@@ -88,8 +87,7 @@ survminer::ggsurvplot(
   break.time.by = 1,
   # surv.median.line = "v",  # add the median survival pointer.
   legend='right',
-  legend.labs = c("3 cycle surgery",'6 cycle chemo change surgery',
-                  '6 cycle no chemo change surgery',"6 cycle no surgery"),
+  legend.labs = c("3 cycle surgery",'6 cycle surgery'),
   pval.coord=c(5,0.02),
   pval.method.coord=c(5,0.1),
   palette = 'Dark2'
@@ -99,7 +97,7 @@ survminer::ggsurvplot(
 
 ## Missing data pattern
 ```{r missing data plot,echo=F}
-
+# TODO can be replaced with naniar
 na_pattern_df <- as.data.table(clinical_multi_df[,apply(.SD,2,function(x){return(is.na(x))}),.SDcols=!c('patient_id')])
 na_pattern_df[,patient_id:=clinical_multi_df[,patient_id]]
 
@@ -121,10 +119,15 @@ ggplot(data=na_pattern_plot_df)+
 Cox analysis for overall survival adjusting for the following clinical parameters: age at diagnosis, , baseline histological grade, cancer staging after surgery
 
 ```{r multi-cox os, echo=FALSE}
+coxph_os_model <- coxph(
+  Surv(time = os_time, event = os_status) ~ type_of_chemo_cleaned + change_in_chemo + patient_group + age_at_diagnosis +
+    figo_staging + performance_status + brca_status +
+    surgical_outcome + maintenance_therapy,
+  data = clinical_multi_df
+) 
 
-coxph(Surv(time=os_time,event=os_status) ~ patient_group+age_at_diagnosis+figo_staging+performance_status+brca_status+
-        surgical_outcome+maintenance_therapy, data = clinical_multi_df)%>%
-  generics::tidy(exponentiate=TRUE,conf.int=TRUE)
+coxph_os_model %>%
+  generics::tidy(exponentiate = TRUE, conf.int = TRUE)
 
 ```
 
@@ -134,9 +137,15 @@ Cox analysis for recurrence free survival adjusting
 
 ```{r multi-cox pfs, echo=FALSE}
 
-coxph(Surv(time=pfs_time,event=pfs_status) ~ patient_group+age_at_diagnosis+figo_staging+performance_status+brca_status+
-        surgical_outcome+maintenance_therapy, data = clinical_df) %>%
-    generics::tidy(exponentiate=TRUE,conf.int=TRUE)
+coxph_ps_model <- coxph(
+  Surv(time = pfs_time, event = pfs_status) ~ type_of_chemo_cleaned+ change_in_chemo + patient_group + age_at_diagnosis +
+    figo_staging + performance_status + brca_status +
+    surgical_outcome + maintenance_therapy,
+  data = clinical_df
+) 
+
+coxph_ps_model %>%
+  generics::tidy(exponentiate = TRUE, conf.int = TRUE)
 
 
 ```
@@ -145,34 +154,38 @@ coxph(Surv(time=pfs_time,event=pfs_status) ~ patient_group+age_at_diagnosis+figo
 
 ```{r cox table,echo=FALSE}
 
-os_surv_table <-coxph(Surv(time=os_time,event=os_status) ~
-                        patient_group+age_at_diagnosis+figo_staging+performance_status+
-                        brca_status+surgical_outcome+maintenance_therapy,
-                      data = clinical_multi_df) %>%
-  tbl_regression(exponentiate = TRUE,
-                 label = list(age_at_diagnosis ~ 'age at diagnosis',
-                              patient_group ~ 'patient group',
-                              figo_staging ~ 'figo staging',
-                              performance_status ~ 'performance status',
-                              brca_status ~ 'brca status',
-                              surgical_outcome ~ 'surgical outcome',
-                              maintenance_therapy ~ 'maintenance therapy')) %>%
+
+os_surv_table <- coxph_os_model %>%
+  tbl_regression(
+    exponentiate = TRUE,
+    label = list(
+      age_at_diagnosis ~ 'age at diagnosis',
+      patient_group ~ 'patient group',
+      figo_staging ~ 'figo staging',
+      performance_status ~ 'performance status',
+      brca_status ~ 'brca status',
+      surgical_outcome ~ 'surgical outcome',
+      maintenance_therapy ~ 'maintenance therapy'
+    )
+  ) %>%
   add_n() %>%
   add_significance_stars()
 
-pfs_surv_table <-coxph(Surv(time=pfs_time,event=pfs_status) ~
-                         patient_group+age_at_diagnosis+figo_staging+performance_status+
-                         brca_status+surgical_outcome+maintenance_therapy, 
-                       data = clinical_multi_df) %>%
-  tbl_regression(exponentiate = TRUE,
-                 label = list(age_at_diagnosis ~ 'age at diagnosis',
-                              patient_group ~ 'patient group',
-                              figo_staging ~ 'figo staging',
-                              performance_status ~ 'performance status',
-                              brca_status ~ 'brca status',
-                              surgical_outcome ~ 'surgical outcome',
-                              maintenance_therapy ~ 'maintenance therapy')) %>%
-  add_n()%>%
+
+pfs_surv_table <- coxph_ps_model %>%
+  tbl_regression(
+    exponentiate = TRUE,
+    label = list(
+      age_at_diagnosis ~ 'age at diagnosis',
+      patient_group ~ 'patient group',
+      figo_staging ~ 'figo staging',
+      performance_status ~ 'performance status',
+      brca_status ~ 'brca status',
+      surgical_outcome ~ 'surgical outcome',
+      maintenance_therapy ~ 'maintenance therapy'
+    )
+  ) %>%
+  add_n() %>%
   add_significance_stars()
 # 
 # summary_table <- clinical_multi_df[,.(age_at_diagnosis,patient_group,figo_staging,performance_status,
@@ -191,60 +204,16 @@ combined_survival_table <-
 
 combined_survival_table
 ```
-### Chemo change vs surgical outcome 
-```{r}
-chemo_change_vs_surgical_outcome_df <- clinical_multi_df %>% 
-  filter(patient_group %in% c("6_cycle_chemo_change_surgery", "6_cycle_no_chemo_change_surgery")) %>% 
-  filter(!is.na(surgical_outcome)) %>% 
-  count(surgical_outcome, patient_group) %>% 
-  pivot_wider(names_from = patient_group, values_from = n)
 
-```
-
-
-
-```{r}
-chemo_change_vs_surgical_outcome_df %>% 
-  select(-surgical_outcome) %>% 
-  chisq.test()
-```
 ### Type of chemo's impact on operability
 ```{r}
-
-
-chemo_grouped_df <- clinical_df %>% 
-  mutate(
-    type_of_chemo_cleaned = 
-      case_when(
-        type_of_chemo %in% c("NA", "N/A", "??") ~ NA_character_,
-        str_detect(type_of_chemo, "(?i)carbo.*pac.*") ~ "1",
-        str_detect(type_of_chemo, "(?i)single.*carbo.*") ~ "2",
-        TRUE ~ "3" 
-      )
-  
-### three groups you can find: 
-### carboplatin + pac
-### carboplatin alone 
-### other combinations e.g. Carboplatin + paclitaxel, bevacizumab 
-  ) %>% 
-  mutate(operability = 
-         case_when(
-           patient_group == "6_cycle_no_surgery" ~ FALSE, 
-           is.na(patient_group) ~ NA, 
-           patient_group == "6_cycle_no_chemo_change_surgery" ~ NA,
-           TRUE ~ TRUE
-         )
-       )
-
-
-
-chemo_grouped_df %>%
-  select(operability, type_of_chemo_cleaned) %>% 
+clinical_df %>%
+  select(outcome_after_6_cycles, type_of_chemo_cleaned) %>% 
   drop_na() %>% 
-  count(operability, type_of_chemo_cleaned) %>% 
+  count(outcome_after_6_cycles, type_of_chemo_cleaned) %>% 
   ggplot() +
   geom_col() +
-  aes(x = type_of_chemo_cleaned, fill = operability, y = n) +
+  aes(x = type_of_chemo_cleaned, fill = outcome_after_6_cycles, y = n) +
   xlab("Type of Chemotherapy")
   
 
@@ -252,10 +221,11 @@ chemo_grouped_df %>%
 ### change in chemo vs no change in chemo
 
 ```{r}
-chemo_grouped_df %>% count(change_in_chemo, operability) %>% 
+clinical_df %>% count(change_in_chemo, outcome_after_6_cycles) %>% 
   drop_na() %>% 
   pivot_wider(names_from = change_in_chemo, values_from = n) %>% 
-  mutate(no_change = replace_na(no_change, 0)) %>% 
+  column_to_rownames("outcome_after_6_cycles") %>% 
+  # mutate(no_change = replace_na(no_change, 0)) 
   chisq.test()
 ```
 

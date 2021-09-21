@@ -223,7 +223,20 @@ clinical_df[outcome_after_3_cycles=='no'&change_in_chemo=='changed'&outcome_afte
 # patient went on to 6 cycles, swithced chemo with no intention to operate 
 clinical_df[outcome_after_3_cycles=='no'&change_in_chemo=='changed'&outcome_after_6_cycles=='no',patient_group := '6_cycle_no_surgery']
 
+
+
+clinical_df <- clinical_df %>% 
+  mutate(patient_group = 
+           case_when( 
+             patient_group %in% c("6_cycle_chemo_change_surgery", "6_cycle_no_chemo_change_surgery") ~ "6_cycle_surgery",
+             patient_group == "3_cycle_surgery " ~ "3_cycle_surgery ",
+             patient_group == "6_cycle_no_surgery" ~ NA_character_,
+             TRUE ~ patient_group
+           ))
+
 clinical_df[,patient_group:=factor(patient_group)]
+
+clinical_df %>% count(patient_group)
 
 clinical_df[,table(patient_group)]
 
@@ -243,13 +256,29 @@ clinical_df <- clinical_df %>%
                 str_detect(maintenance_therapy, regex("(?i)no|Nil|Two further cycles|offered radiotherapy")) ~ "no")
   )
 
+clinical_df <- clinical_df %>% 
+  mutate(
+    type_of_chemo_cleaned = 
+      case_when(
+        type_of_chemo %in% c("NA", "N/A", "??") ~ NA_character_,
+        str_detect(type_of_chemo, "(?i)carbo.*pac.*") ~ "1",
+        str_detect(type_of_chemo, "(?i)single.*carbo.*") ~ "2",
+        TRUE ~ "3" 
+      )
+    
+    ### three groups you can find: 
+    ### carboplatin + pac
+    ### carboplatin alone 
+    ### other combinations e.g. Carboplatin + paclitaxel, bevacizumab 
+  )
+
 #===============================================================#
 # Create multi cox clinical df ----
 #===============================================================#
 
 multi_cox_cols <- c('patient_id','os_time','os_status','pfs_time','pfs_status',
                     'age_at_diagnosis','brca_status','figo_staging','performance_status',
-                    'surgical_outcome','patient_group','maintenance_therapy')
+                    'surgical_outcome','patient_group','maintenance_therapy', 'change_in_chemo', 'type_of_chemo_cleaned')
 
 clinical_multi_df <- clinical_df[,..multi_cox_cols]
 
