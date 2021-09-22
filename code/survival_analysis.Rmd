@@ -98,6 +98,11 @@ survminer::ggsurvplot(
 ## Missing data pattern
 ```{r missing data plot,echo=F}
 # TODO can be replaced with naniar
+
+clinical_multi_df %>% naniar::vis_miss()
+
+clinical_multi_df %>% naniar::vis_miss()
+
 na_pattern_df <- as.data.table(clinical_multi_df[,apply(.SD,2,function(x){return(is.na(x))}),.SDcols=!c('patient_id')])
 na_pattern_df[,patient_id:=clinical_multi_df[,patient_id]]
 
@@ -126,6 +131,20 @@ coxph_os_model <- coxph(
   data = clinical_multi_df
 ) 
 
+coxph_os_model_less_surgical <- coxph(
+  Surv(time = os_time, event = os_status) ~ type_of_chemo_cleaned + change_in_chemo + patient_group + age_at_diagnosis +
+    figo_staging + performance_status + brca_status + maintenance_therapy,
+  data = clinical_multi_df
+) 
+
+coxph_os_model_less_brac <- coxph(
+  Surv(time = os_time, event = os_status) ~ type_of_chemo_cleaned + change_in_chemo + patient_group + age_at_diagnosis +
+    figo_staging + performance_status + 
+    maintenance_therapy + surgical_outcome,
+  data = clinical_multi_df
+) 
+
+
 coxph_os_model %>%
   generics::tidy(exponentiate = TRUE, conf.int = TRUE)
 
@@ -144,6 +163,19 @@ coxph_ps_model <- coxph(
   data = clinical_df
 ) 
 
+coxph_ps_model_less_surgical <- coxph(
+  Surv(time = pfs_time, event = pfs_status) ~ type_of_chemo_cleaned+ change_in_chemo + patient_group + age_at_diagnosis +
+    figo_staging + performance_status + brca_status + maintenance_therapy,
+  data = clinical_df
+) 
+
+coxph_ps_model_less_brca <- coxph(
+  Surv(time = pfs_time, event = pfs_status) ~ type_of_chemo_cleaned+ change_in_chemo + patient_group + age_at_diagnosis +
+    figo_staging + performance_status + brca_status +
+    surgical_outcome + maintenance_therapy,
+  data = clinical_df
+) 
+
 coxph_ps_model %>%
   generics::tidy(exponentiate = TRUE, conf.int = TRUE)
 
@@ -152,9 +184,7 @@ coxph_ps_model %>%
 
 ## Multi cox analysis table
 
-```{r cox table,echo=FALSE}
-
-
+```{r ,echo=FALSE}
 os_surv_table <- coxph_os_model %>%
   tbl_regression(
     exponentiate = TRUE,
@@ -189,6 +219,108 @@ pfs_surv_table <- coxph_ps_model %>%
   add_n() %>%
   add_significance_stars(hide_p=FALSE,hide_ci=FALSE)%>%
   bold_p()
+# 
+# summary_table <- clinical_multi_df[,.(age_at_diagnosis,patient_group,figo_staging,performance_status,
+#                          brca_status,surgical_outcome,maintenance_therapy)] %>% 
+#   tbl_summary(missing = "no") %>% 
+#   add_n() %>% 
+#   modify_header(stat_0 ~ "**n (%)**") %>%
+#   modify_footnote(stat_0 ~ NA_character_)
+
+
+combined_survival_table <-
+  tbl_merge(
+    tbls = list(os_surv_table, pfs_surv_table),
+    tab_spanner = c("**Overall survival**", "**Progression free survival**")
+  )
+
+combined_survival_table
+```
+
+## Multi cox analysis table less brca
+
+```{r ,echo=FALSE}
+os_surv_table <- coxph_os_model_less_brac %>%
+  tbl_regression(
+    exponentiate = TRUE,
+    label = list(
+      age_at_diagnosis ~ 'age at diagnosis',
+      patient_group ~ 'patient group',
+      figo_staging ~ 'figo staging',
+      performance_status ~ 'performance status',
+      surgical_outcome ~ 'surgical outcome',
+      maintenance_therapy ~ 'maintenance therapy'
+    )
+  ) %>%
+  add_n() %>%
+  add_significance_stars()
+
+
+pfs_surv_table <- coxph_ps_model_less_brca %>%
+  tbl_regression(
+    exponentiate = TRUE,
+    label = list(
+      age_at_diagnosis ~ 'age at diagnosis',
+      patient_group ~ 'patient group',
+      figo_staging ~ 'figo staging',
+      performance_status ~ 'performance status',
+      surgical_outcome ~ 'surgical outcome',
+      maintenance_therapy ~ 'maintenance therapy'
+    )
+  ) %>%
+  add_n() %>%
+  add_significance_stars()
+# 
+# summary_table <- clinical_multi_df[,.(age_at_diagnosis,patient_group,figo_staging,performance_status,
+#                          brca_status,surgical_outcome,maintenance_therapy)] %>% 
+#   tbl_summary(missing = "no") %>% 
+#   add_n() %>% 
+#   modify_header(stat_0 ~ "**n (%)**") %>%
+#   modify_footnote(stat_0 ~ NA_character_)
+
+
+combined_survival_table <-
+  tbl_merge(
+    tbls = list(os_surv_table, pfs_surv_table),
+    tab_spanner = c("**Overall survival**", "**Progression free survival**")
+  )
+
+combined_survival_table
+```
+
+## Multi cox analysis table less surgical
+
+```{r ,echo=FALSE}
+os_surv_table <- coxph_os_model_less_surgical %>%
+  tbl_regression(
+    exponentiate = TRUE,
+    label = list(
+      age_at_diagnosis ~ 'age at diagnosis',
+      patient_group ~ 'patient group',
+      figo_staging ~ 'figo staging',
+      performance_status ~ 'performance status',
+      brca_status ~ 'brca status',
+      maintenance_therapy ~ 'maintenance therapy'
+    )
+  ) %>%
+  add_n() %>%
+  add_significance_stars()
+
+
+pfs_surv_table <- coxph_ps_model_less_surgical %>%
+  tbl_regression(
+    exponentiate = TRUE,
+    label = list(
+      age_at_diagnosis ~ 'age at diagnosis',
+      patient_group ~ 'patient group',
+      figo_staging ~ 'figo staging',
+      performance_status ~ 'performance status',
+      brca_status ~ 'brca status',
+      maintenance_therapy ~ 'maintenance therapy'
+    )
+  ) %>%
+  add_n() %>%
+  add_significance_stars()
 # 
 # summary_table <- clinical_multi_df[,.(age_at_diagnosis,patient_group,figo_staging,performance_status,
 #                          brca_status,surgical_outcome,maintenance_therapy)] %>% 
