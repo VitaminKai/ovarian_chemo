@@ -169,7 +169,8 @@ os_surv_table <- coxph_os_model %>%
     )
   ) %>%
   add_n() %>%
-  add_significance_stars()
+  add_significance_stars(hide_p=FALSE,hide_ci=FALSE) %>%
+  bold_p()
 
 
 pfs_surv_table <- coxph_ps_model %>%
@@ -186,7 +187,8 @@ pfs_surv_table <- coxph_ps_model %>%
     )
   ) %>%
   add_n() %>%
-  add_significance_stars()
+  add_significance_stars(hide_p=FALSE,hide_ci=FALSE)%>%
+  bold_p()
 # 
 # summary_table <- clinical_multi_df[,.(age_at_diagnosis,patient_group,figo_staging,performance_status,
 #                          brca_status,surgical_outcome,maintenance_therapy)] %>% 
@@ -206,7 +208,7 @@ combined_survival_table
 ```
 
 ### Type of chemo's impact on operability
-```{r}
+```{r barplot}
 clinical_df %>%
   select(outcome_after_6_cycles, type_of_chemo_cleaned) %>% 
   drop_na() %>% 
@@ -220,7 +222,7 @@ clinical_df %>%
 ```
 ### change in chemo vs no change in chemo
 
-```{r}
+```{r chi-squre}
 clinical_df %>% count(change_in_chemo, outcome_after_6_cycles) %>% 
   drop_na() %>% 
   pivot_wider(names_from = change_in_chemo, values_from = n) %>% 
