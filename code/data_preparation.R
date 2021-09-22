@@ -193,6 +193,9 @@ clinical_df[,table(change_in_chemo)]
 # Patient who did not have 6 cycles of chemo, change in chemo should be NA
 
 clinical_df[str_detect(change_in_chemo,regex('N/A|NA|no documentation',ignore_case=T)),change_in_chemo:=NA]
+
+
+
 clinical_df[str_detect(change_in_chemo,regex('no|N$',ignore_case=T)),change_in_chemo:='no_change']
 clinical_df[str_detect(change_in_chemo,regex('yes|Y$',ignore_case=T)),change_in_chemo:='changed']
 clinical_df[change_in_chemo=='Added on bevacizumab in cycle 4 onwards',change_in_chemo:='changed']
