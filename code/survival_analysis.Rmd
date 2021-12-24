@@ -1,8 +1,16 @@
 ---
 title: "HGSOC survival analysis"
 output: 
-  html_document:
-    number_sections: true
+  word_document: 
+    toc: yes
+    number_sections: yes
+    
+knit: (function(inputFile, encoding) { 
+      rmarkdown::render(inputFile,
+                        encoding=encoding, 
+                        output_dir = here::here('output'),
+                        output_file='ovarian_analysis.docx') })
+
 ---
 
 ```{r setup, include=FALSE}
@@ -47,15 +55,15 @@ ggplot(data=na_pattern_plot_df)+
 
 ***
 
-# Comparing survival profile between patients receiving 3 cycle vs 6 cycle of neo-adjuvant chemotherapy 
+# Comparing survival profile between patients receiving 3 cycle vs 6 cycle of neo-adjuvant chemotherapy {.tabset}
 
 > Patients who remains inoperable after 3 cycles of Neoadjuvant chemotherapy went on for further cycles before going for surgeries. We wanted to assess if there is any survival difference stemming from the different number of cycles of neoadjuvant chemotherapy received. We assessed any possible survival difference via log-rank test using the KM curve as well as multi-variate cox regression model adjusted for confounding factors including age, performance status, initial figo staging and surgical outcome.
 
-## Clinical summary table comparing baseline characteristics between 3 cycle vs 6 cycle group 
+## Clinical baseline characteristics
 
 > Baseline comparison between the two groups revealed [to be filled]
 
-```{r,echo=FALSE,warning=FALSE}
+```{r,echo=FALSE,out.width='\\textwidth',warning=FALSE}
 
 tbl_summary(data=clinical_multi_df[,!c('patient_id','os_time','os_status','pfs_time','pfs_status')],
             by='patient_group',
@@ -75,12 +83,17 @@ tbl_summary(data=clinical_multi_df[,!c('patient_id','os_time','os_status','pfs_t
   add_n() %>% # add column with total number of non-missing observations
   add_p() %>% # test for a difference between groups
   bold_labels() %>%
-  bold_p()
+  bold_p() %>%
+  as_flex_table() %>%
+  autofit()
+  
 
 
 ```
 
-## KM Survival curve w.r.t overall survival between 3 cycle and 6 cycle surgery group
+## KM curve & log-rank test 
+
+### Overall survival between 3 cycle and 6 cycle surgery group
 
 > No significant difference was noted between the KM survival curve between 3 cycle and 6 cycle surgery group assessed by log-rank test (p=0.25).
 
@@ -106,7 +119,7 @@ clinical_df %>%
 
 ```
 
-## KM Survival curve w.r.t progression free survival between 3 cycle and 6 cycle surgery group
+### Progression free survival between 3 cycle and 6 cycle surgery group
 
 > No significant difference was noted between the KM survival curve between 3 cycle and 6 cycle surgery group assessed by log-rank test (p=0.15).
 
@@ -207,7 +220,7 @@ combined_uni_survival_table
 
 ```
 
-## Multi cox analysis between 3 and 6 cycle surgery 
+## Multivariate cox regression
 > Compare both os and pfs between 3 and 6 cycle of chemotherapy before going for interval debulking surgery while adjusting for age, performance status, figo staging surgical outcome.
 
 > 6 cycle group is associated with a increased progression free survival after adjusting for clinical confounders, with a hazard raito of 0.56 (95% CI 0.34 to 0.93, p=0.026). There is a similar trend for overall survival however the result did not reach statistical significance, where 6 cycle group has a hazard ratio of 0.63 (95% CI 0.38 to 1.07, p=	0.086)
@@ -243,24 +256,28 @@ coxph_3_6_surgery_pfs_model <- clinical_df %>%
       performance_status ~ 'performance status')) %>%
   add_n() %>%
   add_significance_stars(hide_p=FALSE,hide_ci=FALSE) %>%
-  bold_p()
+  bold_p() 
 
 
 combined_survival_table <-
   tbl_merge(
     tbls = list(coxph_3_6_surgery_os_model, coxph_3_6_surgery_pfs_model),
     tab_spanner = c("**Overall survival**", "**Progression free survival**")
-  )
+  ) %>%
+  as_flex_table() %>%
+  autofit()
 
 combined_survival_table
 ```
 
 ***
-# Compare utility of chemotherapy switch after no-response to 3 cycles of Nac
+# Compare utility of chemotherapy switch after no-response to 3 cycles of Nac {.tabset}
 
 > Patients who remains inoperable after 3 cycles of Neoadjuvant chemotherapy went on for further chemotherapies and a subset subsequently achieved satisfactory tumour regression and therefore deemed operable after completing 6 cycles. Within this patient population, we wanted to assess if switching chemotherapy added survival benefit. For patients who received 6 cycle of Nac and subseuqent interval debulking surgery, we assessed any possible survival difference between patient who had either switch in chemo or same chemo via log-rank test using the KM curve as well as multi-variate cox regression model adjusted for confounding factors including age, performance status and initial figo staging
 
-## KM Survival curve w.r.t overall survival between 6 cycle switch and 6 cycle no-switch group
+## KM curve & log-rank test
+
+### Overall survival between 6 cycle switch and 6 cycle no-switch group
 
 > There was no signficant difference in overall survival between the two groups from log-rank test in KM curve (p=0.19)
 
@@ -286,7 +303,7 @@ clinical_df %>%
 
 ```
 
-## KM Survival curve w.r.t progression free survival between 6 cycle switch and 6 cycle no-switch group
+### Progression free survival between 6 cycle switch and 6 cycle no-switch group
 
 >There was no signficant difference in progression free survival between the two groups from log-rank test in KM curve (p=0.54)
 
@@ -313,7 +330,7 @@ clinical_df %>%
 ```
 
 
-## Multi cox analysis between 6 cycle chemo switch and no switch who received surgery
+## Multivariate cox analysis 
 >Compare both os and pfs between chemo switch and no switch group during 6 cycle of neoadjvuant chemotherapy before going for interval debulking surgery while adjusting for age, performance status, figo staging surgical outcome.
 
 >Patient who did not have a switch in their neoadjuvant chemotherapy had a significantly raised hazard ratio of 14.9 for overall survival (95% C.I. 2.48 - 89.6, p=0.03)
@@ -336,7 +353,7 @@ coxph_chemo_switch_6_surgery_os_model <- clinical_df %>%
   ) %>%
   add_n() %>%
   add_significance_stars(hide_p=FALSE,hide_ci=FALSE) %>%
-  bold_p()
+  bold_p() 
 
 # Firth penalised if needed, does not change CI and p value from normal cox too much
 # clinical_df %>%
@@ -358,27 +375,30 @@ coxph_chemo_switch_6_surgery_pfs_model <- clinical_df %>%
       performance_status ~ 'performance status')) %>%
   add_n() %>%
   add_significance_stars(hide_p=FALSE,hide_ci=FALSE) %>%
-  bold_p()
-
+  bold_p() 
 
 combined_survival_table <-
   tbl_merge(
     tbls = list(coxph_chemo_switch_6_surgery_os_model, coxph_chemo_switch_6_surgery_pfs_model),
     tab_spanner = c("**Overall survival**", "**Progression free survival**")
-  )
+  ) %>%
+  as_flex_table() %>%
+  autofit()
 
 combined_survival_table
 ```
 
 
 ***
-# Finding baseline predictors of inoperability after 6 cycles of neoadjuvant chemotherapy
+# Finding baseline predictors of inoperability after 6 cycles of neoadjuvant chemotherapy {.tabset}
 
->Finally, we aimed to establish prognostic factors that can predict the lack of response to 6 lines of neoadjuvant chemotherapy and eventual surgical inoperability. Logistic regression was performed to predict the eventual outcome of either operable and inoperable.
+>Finally, we aimed to establish prognostic factors that can predict the lack of response to 6 cycles of neoadjuvant chemotherapy and eventual surgical inoperability. Logistic regression was performed to predict the eventual outcome of either operable and inoperable.
 
 >Note in this analysis, change into anti-hormone or stopping chemotherapy wasn't counted as chemo switch as they do not represent a switch for any potential added benefit
 
 >Old age was significantly associated with inoperability with an odds ratio of 1.09 (95% CI 1.05  to 1.14, p < 0.001). Meanwhile, worsening performance status of 3 shows a trend towards inoperability but did not reach statistical significance with an odds ratio of 4.86 (95% CI 0.89 to 27.7, p=0.067). No change in Nac regimen is significantly associated with eventual operability with an odds ratio of 0.13 (95% CI 0.04 to 0.37, p<0.001)
+
+## All patients
 
 ```{r Predict inoperability}
 
@@ -395,7 +415,9 @@ clinical_multi_df %>%
                    performance_status ~ 'performance status')) %>%
   add_n() %>%
   add_significance_stars(hide_p=FALSE,hide_ci=FALSE) %>%
-  bold_p()
+  bold_p() %>%
+  as_flex_table() %>%
+  autofit()
 # 
 # char_to_fct <- function(x){
 #   if(class(x)=='character'){
@@ -410,7 +432,7 @@ clinical_multi_df %>%
 ```
 
 
-## Predict operability specifically in 6 cycle group
+## 6 cycle NACT
 
 > Considering all 3 cycle surgery group wouldn't have a change in chemotherapy potentially biasing the result, we repeated the analysis looking specifically within patients who received 6 cycles of Nac before interval debulking surgery. 
 
@@ -433,7 +455,9 @@ clinical_multi_df %>%
                    performance_status ~ 'performance status')) %>%
   add_n() %>%
   add_significance_stars(hide_p=FALSE,hide_ci=FALSE) %>%
-  bold_p()
+  bold_p() %>%
+  as_flex_table() %>%
+  autofit()
 
 # logistf.control(maxit = 500,maxstep = 1)
 # 
